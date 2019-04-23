@@ -52,6 +52,7 @@ module.exports = function generateMaterialsDatabases(
     })
     .catch((err) => {
       console.log('uncaught error:\n', err.stack);
+      process.exit(1);
     });
 };
 
@@ -209,6 +210,8 @@ function generateMaterialsData(files, SPACE, type, done) {
   }).then((data) => {
     logger.info(`通过 npm 查询 ${type} 信息完成`);
     done(data);
+  }).catch((err) => {
+    logger.fatal(err);
   });
 }
 
