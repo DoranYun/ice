@@ -7,6 +7,7 @@ const { isAliNpm, checkAliInternal } = require('ice-npm-utils');
 const getDB = require('../utils/db');
 const tokenUtil = require('../utils/token');
 const pkgJSON = require('../utils/pkg-json');
+const logger = require('../utils/logger');
 
 let fusionDesignUrl;
 
@@ -124,40 +125,40 @@ function dbReshape(db) {
   return datas;
 }
 module.exports = async function sync(cwd) {
-  const isInnerNet = await checkAliInternal();
-  let innerSync = false;
-  if (isInnerNet) {
-    const { inner } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        message: '您正处于内网环境,请问是否需要同步到内部站点',
-        name: 'inner',
-      },
-    ]);
-    debug('sync-ali: %s', inner);
-    innerSync = inner;
-  }
-
-  const { name: pkgname } = pkgJSON.getPkgJSON(cwd);
-  if (isAliNpm(pkgname) && !innerSync) {
-    console.log(chalk.red(`${pkgname} 为内网项目, 禁止同步到外网`));
-    return;
-  }
-
-  let siteUtil;
-  if (innerSync) {
-    siteUtil = require('../utils/inner-site');
-    fusionDesignUrl = require('../utils/inner-url')().fusionDesignUrl;
-  } else {
-    siteUtil = require('../utils/site');
-    fusionDesignUrl = require('../utils/url')().fusionDesignUrl;
-  }
-
-  const db = await getDB(cwd);
-  const token = await tokenUtil.tokenPrepare();
-  const site = await siteUtil.getSite(cwd, token);
-
   try {
+    const isInnerNet = await checkAliInternal();
+    let innerSync = false;
+    if (isInnerNet) {
+      const { inner } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          message: '您正处于内网环境,请问是否需要同步到内部站点',
+          name: 'inner',
+        },
+      ]);
+      debug('sync-ali: %s', inner);
+      innerSync = inner;
+    }
+
+    const { name: pkgname } = pkgJSON.getPkgJSON(cwd);
+    if (isAliNpm(pkgname) && !innerSync) {
+      console.log(chalk.red(`${pkgname} 为内网项目, 禁止同步到外网`));
+      return;
+    }
+
+    let siteUtil;
+    if (innerSync) {
+      siteUtil = require('../utils/inner-site');
+      fusionDesignUrl = require('../utils/inner-url')().fusionDesignUrl;
+    } else {
+      siteUtil = require('../utils/site');
+      fusionDesignUrl = require('../utils/url')().fusionDesignUrl;
+    }
+
+    const db = await getDB(cwd);
+    const token = await tokenUtil.tokenPrepare();
+    const site = await siteUtil.getSite(cwd, token);
+
     const datas = dbReshape(db);
     await uploadData(datas, token, site);
     console.log();
@@ -169,6 +170,6 @@ module.exports = async function sync(cwd) {
     console.log();
   } catch (error) {
     console.log(chalk.red('sync fail'));
-    throw error;
+    logger.fatal(error);
   }
 };
